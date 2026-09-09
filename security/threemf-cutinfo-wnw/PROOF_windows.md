@@ -132,6 +132,19 @@ the attacker-selected pointer `P`. When `P` points to **writable** memory the wr
     `vid=62076` one run and `vid=335844` the next; with big buffers the whole spray
     shifted by **~1.3 GB** (`vid` −166M) between runs. The spray-to-`data()` distance is
     randomized far beyond the spray's own extent, so no fixed `volume_id` is reliable.
+  - **Adjacent-allocation grooming was tried and also fails (single-shot).** Matching the
+    spray buffer size to the volumes-vector backing (so markers share `data()`'s heap
+    size-class) raised cross-run overlap from 0 to tens of thousands, and even produced
+    contiguous marker runs stable across three probe runs — but the offset never held on
+    the real exploit run:
+    - Same-size **LFH** (4 KB buffers, N_VOL=512): A∩B = 61,654; A∩B∩C = 22,640;
+      508-slot stable runs. Exploiting a 3-way-stable `vid` (`-1222`, `-10601387`) →
+      `P = 0` (NULL), not the marker.
+    - **Backend** (32 KB buffers, >16 KB so non-LFH, N_VOL=4096): 2-way = 171,789;
+      3-way = 24,973; a **3331-slot** contiguous run stable across three probes. Exploiting
+      its middle (`vid=-10660355`, ±1600-slot margin) → still `P = 0` (NULL).
+    LFH slot randomization and segment-heap/ASLR variance mean `(marker − data())/8` is
+    only *partially* reproducible across probe runs and does not hold on the exploit run.
   - Contrast **macOS**: with ASLR disabled the heap is **deterministic** — the identical
     3mf produces byte-identical `data()` and slot contents across runs (verified). So the
     reliable-`P` grooming is tractable on macOS and is where a chosen-`P` → code-pointer
